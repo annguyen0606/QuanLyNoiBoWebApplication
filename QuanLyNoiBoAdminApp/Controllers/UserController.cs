@@ -20,6 +20,7 @@ namespace QuanLyNoiBoAdminApp.Controllers
         [HttpPost]
         public Task<IActionResult> Login()
         {
+            //Hhaha
             return View();
         }
     }
