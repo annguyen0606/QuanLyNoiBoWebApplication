@@ -4,12 +4,20 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.0.35" />
     <PackageReference Include="log4net" Version="2.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.8" />
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.90" />
     <PackageReference Include="StackExchange.Redis" Version="2.1.58" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuanLyNoiBo.ViewModel\QuanLyNoiBo.ViewModel.csproj" />
   </ItemGroup>
 
 

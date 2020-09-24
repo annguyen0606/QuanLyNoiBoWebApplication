@@ -32,6 +32,7 @@ namespace QuanLyNoiBoWebAPI
 
             //services.AddControllers();
             services.AddControllers().AddNewtonsoftJson(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
