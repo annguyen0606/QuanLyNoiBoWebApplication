@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30517.126
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuanLyNoiBoWebApplication", "QuanLyNoiBoWebApplication\QuanLyNoiBoWebApplication.csproj", "{266ED0C6-9396-4D80-8B94-CFFC180C46EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuanLyNoiBoWebAPI", "QuanLyNoiBoWebAPI\QuanLyNoiBoWebAPI.csproj", "{4C6243B8-05B9-4F9B-98C8-6B7E5B1E7BF8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{266ED0C6-9396-4D80-8B94-CFFC180C46EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{266ED0C6-9396-4D80-8B94-CFFC180C46EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{266ED0C6-9396-4D80-8B94-CFFC180C46EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{266ED0C6-9396-4D80-8B94-CFFC180C46EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C6243B8-05B9-4F9B-98C8-6B7E5B1E7BF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C6243B8-05B9-4F9B-98C8-6B7E5B1E7BF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C6243B8-05B9-4F9B-98C8-6B7E5B1E7BF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C6243B8-05B9-4F9B-98C8-6B7E5B1E7BF8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B127F220-7741-4251-858E-5884F29526B5}
+	EndGlobalSection
+EndGlobal
