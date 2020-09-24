@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace eShopSolution.ViewModels.System.Roles
+namespace QuanLyNoiBo.ViewModels.System.Roles
 {
     public class RoleVm
     {
