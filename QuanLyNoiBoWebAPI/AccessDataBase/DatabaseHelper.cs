@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using log4net;
+using Newtonsoft.Json;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using QuanLyNoiBoWebAPI.Support;
@@ -14,7 +15,7 @@ namespace QuanLyNoiBoWebAPI.AccessDataBase
 {
     public class DatabaseHelper
     {
-        private readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         Stopwatch stopWatch = new Stopwatch();
 
@@ -386,6 +387,251 @@ namespace QuanLyNoiBoWebAPI.AccessDataBase
 
             return resultReturn;
         }
+        public static void GetAllPackageDatabase()
+        {
+            ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+            Stopwatch st = new Stopwatch();
 
+            if (logger.IsDebugEnabled)
+            {
+                st.Start();
+            }
+
+            try
+            {
+                IList<Task> tasks = new List<Task>();
+                DataTable dtPackage = new DataTable();
+                dtPackage = ExecuteReaderQuery(DALConst.QUERY_SELECT_PACKAGE);
+                PackageModel[] arrPackageModel = new PackageModel[dtPackage.Rows.Count];
+
+                foreach (var i in Enumerable.Range(0, dtPackage.Rows.Count))
+                {
+                    DataRow drPackage = dtPackage.Rows[i];
+
+                    Task taskParent = Task.Factory.StartNew(() =>
+                    {
+                        string packageName = drPackage["PACKAGE_NAME"].ToString().ToUpper();
+
+                        IList<Task> tasksChild = new List<Task>();
+                        IList<FunctionModel> listFunction = new List<FunctionModel>();
+                        DataTable dtFunction = new DataTable();
+                        dtFunction = ExecuteReaderQuery(String.Format(DALConst.QUERY_SELECT_FUNCTION, packageName));
+
+                        for (int j = 0; j < dtFunction.Rows.Count; j++)
+                        {
+                            DataRow drFunction = dtFunction.Rows[j];
+
+                            string functionName = drFunction["OBJECT_NAME"].ToString();
+                            IList<ArgumentModel> listArgument = new List<ArgumentModel>();
+                            DataTable dtArgument = new DataTable();
+                            dtArgument = ExecuteReaderQuery(String.Format(DALConst.QUERY_SELECT_ARGUMENT, functionName));
+
+                            for (int k = 0; k < dtArgument.Rows.Count; k++)
+                            {
+                                DataRow drArgument = dtArgument.Rows[k];
+                                OracleDbType oracleDbType = OracleDbType.Varchar2;
+                                ParameterDirection direction = ParameterDirection.Input;
+
+                                switch (drArgument["DATA_TYPE"].ToString().ToUpper().Replace(" ", ""))
+                                {
+                                    case "REFCURSOR":
+                                        oracleDbType = OracleDbType.RefCursor;
+                                        break;
+                                    case "VARCHAR2":
+                                        oracleDbType = OracleDbType.Varchar2;
+                                        break;
+                                    case "NUMBER":
+                                        oracleDbType = OracleDbType.Int16;
+                                        break;
+                                    default:
+                                        break;
+                                }
+
+                                switch (drArgument["IN_OUT"].ToString().ToUpper())
+                                {
+                                    case "IN":
+                                        direction = ParameterDirection.Input;
+                                        break;
+                                    case "OUT":
+                                        direction = ParameterDirection.Output;
+                                        break;
+                                    case "IN_OUT":
+                                        direction = ParameterDirection.InputOutput;
+                                        break;
+                                    default:
+                                        break;
+                                }
+
+                                listArgument.Add(new ArgumentModel()
+                                {
+                                    ARGUMENT_NAME = drArgument["ARGUMENT_NAME"].ToString(),
+                                    POSITION = drArgument["POSITION"].ToString(),
+                                    DATA_TYPE = oracleDbType,
+                                    IN_OUT = direction
+                                });
+                            }
+
+                            listFunction.Add(new FunctionModel()
+                            {
+                                FUNCTION_NAME = functionName,
+                                LIST_ARGUMENT = listArgument
+                            });
+                        }
+
+                        arrPackageModel[i] = (new PackageModel()
+                        {
+                            PACKAGE_NAME = packageName,
+                            LIST_FUNCTION = listFunction
+                        });
+                    });
+
+                    tasks.Add(taskParent);
+                }
+
+                Task.WhenAll(tasks).Wait();
+                _listPackage = arrPackageModel.ToList<PackageModel>();
+
+                RedisCache.Set(DALConst.REDIS_KEY_ALL_PACKAGE, JsonConvert.SerializeObject(_listPackage));
+                logger.Info("GetAllPackageDatabase: " + _listPackage.Count + " Package");
+            }
+            catch (Exception ex)
+            {
+                logger.Error("GetAllPackageDatabase", ex);
+            }
+
+            if (logger.IsDebugEnabled)
+            {
+                st.Stop();
+                logger.Info(DALConst.A("GetAllPackageDatabase.:Stopwatch", st.ElapsedMilliseconds));
+            }
+        }
+
+        public static IList<PackageModel> _listPackage = new List<PackageModel>();
+        public static IEnumerable<OracleParameter> GetParameterStored(string storedName, object[] keyValues)
+        {
+            string[] storedInfo = storedName.Split('.');
+            string packageName = storedInfo[0];
+            string functionName = storedInfo[1];
+
+            OracleParameter command = new OracleParameter();
+            IDictionary<string, object> result = new Dictionary<string, object>();
+
+            string v_ErrCode = String.Empty;
+            string v_ErrMessage = String.Empty;
+
+            if (_listPackage.Count == 0)
+            {
+                _listPackage = JsonConvert.DeserializeObject<IList<PackageModel>>(RedisCache.Get(DALConst.REDIS_KEY_ALL_PACKAGE));
+                if (_listPackage.Count == 0) GetAllPackageDatabase();
+            }
+
+            if (_listPackage.Count > 0)
+            {
+                IList<ArgumentModel> listArguments = _listPackage.FirstOrDefault(package => package.PACKAGE_NAME == packageName.ToUpper())?.LIST_FUNCTION
+                                                                    .FirstOrDefault(function => function.FUNCTION_NAME == functionName.ToUpper())?.LIST_ARGUMENT;
+
+                foreach (var item in listArguments.Select((value, index) => new { argumentModel = value, Index = index }))
+                {
+                    string fieldName = item.argumentModel.ARGUMENT_NAME.ToLower();
+                    var value = keyValues[item.Index];
+                    int sizeValue = 100;
+
+                    switch (fieldName)
+                    {
+                        case DALConst.P_REFCURSOR:
+                            sizeValue = 0;
+                            break;
+                        case DALConst.P_ERR_CODE:
+                            sizeValue = DALConst.LENGTH_ERR_CODE;
+                            break;
+                        case DALConst.P_ERR_MESSAGE:
+                            sizeValue = DALConst.LENGTH_ERR_MESSAGE;
+                            break;
+                        default:
+                            if (keyValues[item.Index] == null) sizeValue = 0;
+                            else sizeValue = value.ToString().Length;
+                            break;
+                    }
+
+                    yield return new OracleParameter()
+                    {
+                        IsNullable = true,
+                        ParameterName = fieldName,
+                        Value = value,
+                        OracleDbType = item.argumentModel.DATA_TYPE,
+                        Direction = item.argumentModel.IN_OUT,
+                        Size = sizeValue
+                    };
+                }
+            }
+            else
+            {
+                result.Add(DALConst.P_ERR_CODE, 106);
+                result.Add(DALConst.P_ERR_MESSAGE, "Stored không tồn tại");
+                result.Add(DALConst.DATA, new DataTable());
+                logger.Error(DALConst.A("GetParameterStored", result[DALConst.P_ERR_MESSAGE].ToString()));
+            }
+        }
+        public static IDictionary<string, object> ExecBOFunctionAdvance(string storedName, object[] keyValues)
+        {
+            IDictionary<string, object> result = new Dictionary<string, object>();
+            string v_ErrCode = String.Empty;
+            string v_ErrMessage = String.Empty;
+            DataTable v_dt = new DataTable();
+
+            try
+            {
+                OracleCommand command = new OracleCommand();
+                command.Parameters.AddRange(GetParameterStored(storedName, keyValues)?.ToArray());
+
+                using (OracleConnection connection = new OracleConnection(DALConst.ORACLE_CONNECTION))
+                {
+                    using (OracleDataAdapter adapter = new OracleDataAdapter(command))
+                    {
+                        command.Connection = connection;
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.CommandText = storedName;
+                        command.BindByName = true;
+
+                        foreach (OracleParameter parameter in command.Parameters)
+                        {
+                            if (parameter.Direction == ParameterDirection.Output || parameter.Direction == ParameterDirection.InputOutput)
+                            {
+                                switch (parameter.ParameterName)
+                                {
+                                    case DALConst.P_ERR_CODE:
+                                        if (parameter.Value != DBNull.Value)
+                                            v_ErrCode = (parameter.Value.ToString() == DALConst.VALUE_NULL) ? DALConst.SYS_ERR_EXCEPTION : parameter.Value.ToString();
+                                        break;
+                                    case DALConst.P_REFCURSOR:
+                                        DataSet v_ds = new DataSet();
+                                        adapter.Fill(v_ds);
+                                        if (v_ds != null && v_ds.Tables.Count > 0)
+                                            v_dt = v_ds.Tables[0];
+                                        break;
+                                    case DALConst.P_ERR_MESSAGE:
+                                        v_ErrMessage = parameter.Value.ToString();
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                v_ErrCode = DALConst.SYS_ERR_UNKNOW;
+                v_ErrMessage = ex.ToString();
+                logger.Error(DALConst.A("ExecBOFunctionAdvance", storedName, ex));
+            }
+
+            result.Add(DALConst.P_ERR_CODE, v_ErrCode);
+            result.Add(DALConst.P_ERR_MESSAGE, v_ErrMessage);
+            result.Add(DALConst.DATA, v_dt);
+
+            return result;
+        }
     }
 }
