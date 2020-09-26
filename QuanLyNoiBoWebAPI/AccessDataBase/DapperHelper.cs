@@ -224,5 +224,39 @@ namespace QuanLyNoiBoWebAPI.AccessDataBase
 
             return resultReturn;
         }
+
+        public static async Task<IDictionary<string, object>> CheckZalo(string storedName, object[] keyValues)
+        {
+
+            IDictionary<string, object> resultReturn = new Dictionary<string, object>();
+
+            try
+            {
+                OracleDynamicParameters dynamicParams = new OracleDynamicParameters();
+                dynamicParams.Add("p_ZaloID", OracleDbType.Varchar2, ParameterDirection.Input, keyValues[0]?.ToString());
+                dynamicParams.Add("p_PhoneRegist", OracleDbType.Varchar2, ParameterDirection.Input, keyValues[1]?.ToString());
+                dynamicParams.Add("p_Company", OracleDbType.Varchar2, ParameterDirection.Input, keyValues[2]?.ToString());
+                dynamicParams.Add("p_ServiceName", OracleDbType.Varchar2, ParameterDirection.Input, keyValues[3]?.ToString());
+                dynamicParams.Add("p_err_code", OracleDbType.Varchar2, ParameterDirection.Output, null, 10);
+                dynamicParams.Add("p_err_message", OracleDbType.Varchar2, ParameterDirection.Output, null, 50);
+
+                using (IDbConnection dbConnection = new OracleConnection(DALConst.ORACLE_CONNECTION))
+                {
+                    dbConnection.Open();
+                    await SqlMapper.QueryAsync(dbConnection, storedName, param: dynamicParams, commandType: CommandType.StoredProcedure);
+                    resultReturn.Add(DALConst.P_ERR_CODE, dynamicParams.oracleParameters[dynamicParams.oracleParameters.Count - 2].Value.ToString());
+                    resultReturn.Add(DALConst.P_ERR_MESSAGE, dynamicParams.oracleParameters[dynamicParams.oracleParameters.Count - 1].Value.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                resultReturn.Add(DALConst.P_ERR_CODE, DALConst.SYS_ERR_EXCEPTION);
+                resultReturn.Add(DALConst.P_ERR_MESSAGE, ex);
+                logger.Error(DALConst.A("CheckZaloUsingAsync", storedName, ex));
+            }
+
+
+            return resultReturn;
+        }
     }
 }

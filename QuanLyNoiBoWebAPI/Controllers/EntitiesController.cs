@@ -27,6 +27,10 @@ namespace QuanLyNoiBoWebAPI.Controllers
             {
                 DataSet dataSet = DatabaseHelper.GetData(AppConst.GET_ALL_VALUES_ENTITIES_TABLE, "all", data1, data2);
                 return Ok(dataSet);
+            }else if(function == "organization")
+            {
+                DataSet dataSet = DatabaseHelper.GetData(AppConst.GET_ALL_VALUES_ENTITIES_ORGANIZATION, "organization", data1, data2);
+                return Ok(dataSet);
             }
             else
             {
@@ -41,6 +45,29 @@ namespace QuanLyNoiBoWebAPI.Controllers
             }
         }
 
-       
+        [Route("api/Zalo")]
+        [HttpPost]
+        public async Task<IDictionary<string, object>> Zalo([FromForm]Zalo zalo)
+        {
+            int v_ErrCode = AppConst.SYS_ERR_UNKNOW;
+            string v_ErrMessage = String.Empty;
+            IDictionary<string, object> v_Dict = new Dictionary<string, object>();
+
+            try
+            {
+                object[] keyValues = { zalo.ZaloID, zalo.PhoneNumber, zalo.CompanyName, zalo.ServiceName};
+                v_Dict = DatabaseHelper.ExecBOFunctionAdvance(AppConst.CHECK_ZALO_REGIST,keyValues);
+                //v_Dict = await DapperHelper.CheckZalo(AppConst.CHECK_ZALO_REGIST, keyValues);
+                v_ErrCode = Convert.ToInt32(v_Dict[AppConst.P_ERR_CODE]);
+                v_ErrMessage = v_Dict[AppConst.P_ERR_MESSAGE].ToString();
+            }
+            catch (Exception ex)
+            {
+                v_ErrCode = AppConst.SYS_ERR_EXCEPTION;
+                v_ErrMessage = ex.ToString();
+            }
+
+            return CommonUtil.ServiceReturn(v_ErrCode, v_ErrMessage, "");
+        }
     }
 }
